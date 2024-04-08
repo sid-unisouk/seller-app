@@ -342,7 +342,46 @@ export async function mapBPCData(data) {
             "tags": tags,
             //"@ondc/org/fssai_license_no": org.FSSAI
         })
-        for(const tagCat of tagCatList){
+        let serviceabilityType = ''
+        let serviceabilityUnit = ''
+        let serviceabilityValue = ''
+        if (org.storeDetails.location_availability === 'pan_india') {
+            serviceabilityType = "12"
+            serviceabilityUnit = 'country'
+            serviceabilityValue = 'IND'
+        } else if (org.storeDetails.location_availability === 'city') {
+            serviceabilityType = "11"
+            serviceabilityUnit = 'country'   // TODO : city pincodes is pending - harcoded for now
+            serviceabilityValue = 'IND'      // TODO : city pincodes is pending - hardcoded for now
+        } else if (org.storeDetails.location_availability === 'custom_area') {
+            serviceabilityType = "13"
+            serviceabilityUnit = 'polygon'
+            const customArea = org.storeDetails.custom_area;
+            const coordinates = customArea[0]?.map(coord => [coord.lng, coord.lat]);
+            const geoJSON = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: {},
+                        geometry: {
+                            coordinates: [coordinates],
+                            type: "Polygon"
+                        }
+                    }
+                ]
+            };
+
+            const value = JSON.stringify(geoJSON);
+
+            serviceabilityValue = value
+        } else if (org.storeDetails.location_availability === 'radius') {
+            serviceabilityType = "10"
+            serviceabilityUnit = org.storeDetails?.radius?.unit
+            serviceabilityValue = org.storeDetails?.radius?.value
+        }
+
+        for (const tagCat of tagCatList) {
             tags.push(
                 {
                     "code": "serviceability",
@@ -357,18 +396,18 @@ export async function mapBPCData(data) {
                         },
                         {
                             "code": "type",
-                            "value": "12" //Enums are "10" - hyperlocal, "11" - intercity, "12" - pan-India
+                            "value": serviceabilityType
                         },
                         {
                             "code": "unit",
-                            "value": "country"
+                            "value": serviceabilityUnit
                         },
                         {
                             "code": "value",
-                            "value": "IND"
+                            "value": serviceabilityValue
                         }
                     ]
-            })
+                })
         }
 
         const fulfillments = org.storeDetails.fulfillments;

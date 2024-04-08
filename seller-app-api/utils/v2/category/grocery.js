@@ -342,59 +342,74 @@ export async function mapGroceryData(data) {
             "tags": tags,
             //"@ondc/org/fssai_license_no": org.FSSAI
         })
-        for (const tagCat of tagCatList) {
 
-            let serviceability = {
-                "code": "serviceability",
-                "list": [
+        let serviceabilityType = ''
+        let serviceabilityUnit = ''
+        let serviceabilityValue = ''
+        if (org.storeDetails.location_availability === 'pan_india') {
+            serviceabilityType = "12"
+            serviceabilityUnit = 'country'
+            serviceabilityValue = 'IND'
+        } else if (org.storeDetails.location_availability === 'city') {
+            serviceabilityType = "11"
+            serviceabilityUnit = 'country'   // TODO : city pincodes is pending - harcoded for now
+            serviceabilityValue = 'IND'      // TODO : city pincodes is pending - hardcoded for now
+        } else if (org.storeDetails.location_availability === 'custom_area') {
+            serviceabilityType = "13"
+            serviceabilityUnit = 'polygon'
+            const customArea = org.storeDetails.custom_area;
+            const coordinates = customArea[0]?.map(coord => [coord.lng, coord.lat]);
+            const geoJSON = {
+                type: "FeatureCollection",
+                features: [
                     {
-                        "code": "location",
-                        "value": org.storeDetails?.location._id ?? "0"
-                    },
-                    {
-                        "code": "category",
-                        "value": tagCat.category
-                    },
-
+                        type: "Feature",
+                        properties: {},
+                        geometry: {
+                            coordinates: [coordinates],
+                            type: "Polygon"
+                        }
+                    }
                 ]
-            }
+            };
 
-            // if(org.storeDetails.locationAvailabilityPANIndia || org.storeDetails.location_availability==='pan_india'){
-            serviceability.list.push(
-                {
-                    "code": "type",
-                    "value": "12" //Enums are "10" - hyperlocal, "11" - intercity, "12" - pan-India
-                },
-                {
-                    "code": "unit",
-                    "value": "country"
-                },
-                {
-                    "code": "value",
-                    "value": "IND"
-                }
-            )
-            // }else if(org.storeDetails.location_availability === 'custom_area'){
-            //         //map lat long in json format
-            //     console.log("-----org.storeDetails.custom_area--------",org.storeDetails.custom_area)
-            //     serviceability.list.push( {
-            //         "code":"type",
-            //         "value":"13"
-            //     },
-            //     {
-            //         "code":"unit",
-            //         "value":"polygon"
-            //     },
-            //     {
-            //         "code":"val",
-            //         "value":"{\"type\": \"FeatureCollection\", \"features\": [{\"type\": \"Feature\", \"properties\": {}, \"geometry\": {\"coordinates\": [[[77.17557124364345, 28.675927920960092], [77.12873700880397, 28.600972470604688], [77.44693431021358, 28.54532578327904], [77.17557124364345, 28.675927920960092]]], \"type\": \"Polygon\"}}]}"
-            //
-            //     }
-            //     )
-            // }
+            const value = JSON.stringify(geoJSON);
 
-            tags.push(serviceability)
+            serviceabilityValue = value
+        } else if (org.storeDetails.location_availability === 'radius') {
+            serviceabilityType = "10"
+            serviceabilityUnit = org.storeDetails?.radius?.unit
+            serviceabilityValue = org.storeDetails?.radius?.value
         }
+        for (const tagCat of tagCatList) {
+            tags.push(
+                {
+                    "code": "serviceability",
+                    "list": [
+                        {
+                            "code": "location",
+                            "value": org.storeDetails?.location._id ?? "0"
+                        },
+                        {
+                            "code": "category",
+                            "value": tagCat.category
+                        },
+                        {
+                            "code": "type",
+                            "value": serviceabilityType
+                        },
+                        {
+                            "code": "unit",
+                            "value": serviceabilityUnit
+                        },
+                        {
+                            "code": "value",
+                            "value": serviceabilityValue
+                        }
+                    ]
+                })
+        }
+
         const fulfillments = org.storeDetails.fulfillments;
         fulfillments?.forEach((fulfillment) => {
             fulfillment?.storeTimings?.forEach((storeTiming) => {
