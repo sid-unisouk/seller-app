@@ -1617,8 +1617,28 @@ class ProductService {
             if (onNetworkLogistics) {
                 deliveryFullfillment.start.time.timestamp = logisticData.message.order?.fulfillments[0].start?.time?.timestamp ?? ""
             } else {
-                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-picked-up')
-                deliveryFullfillment.start.time = { timestamp: fulfillmentHistory?.updatedAt }
+
+                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder._id, 'Order-picked-up');
+                // Extract the timestamp from fulfillmentHistory
+                const startTimestamp = fulfillmentHistory?.updatedAt;
+
+                // Create moment objects for timestamp and timestamp + 4 hours
+                const startTime = moment(startTimestamp);
+                const startTimeRange = startTime.clone().add(4, 'hours').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+                // Construct the start time range object
+                const start = {
+                    time: {
+                        range: {
+                            start: startTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                            end: startTimeRange
+                        }
+                    },
+                    timestamp: startTimestamp
+                };
+
+                // Assign the start time range object to deliveryFullfillment.start
+                deliveryFullfillment.start = start;
 
             }
         }
@@ -1628,125 +1648,26 @@ class ProductService {
             if (onNetworkLogistics) {
                 deliveryFullfillment.end.time.timestamp = logisticData.message.order?.fulfillments[0].end?.time?.timestamp ?? ""
             } else {
-                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-delivered')
-                deliveryFullfillment.end.time = { timestamp: fulfillmentHistory?.updatedAt }
-            }
-        }
-        if (onNetworkLogistics) {
-            deliveryFullfillment.agent = logisticData.message.order?.fulfillments[0].agent
-            deliveryFullfillment.vehicle = logisticData.message.order?.fulfillments[0].vehicle
-        }
-        updateOrder.fulfillments[deliveryFullfillmentIndex] = deliveryFullfillment;
+                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder._id, 'Order-delivered')
+                const endTimestamp = fulfillmentHistory?.updatedAt;
 
-        console.log("logisticData.message.order.fulfillments[0].state--->", logisticData?.message.order.fulfillments[0].state)
-        console.log("llogisticData.message.order.state--->", logisticData?.message.order.state)
-        //update order level state
-        httpRequest = new HttpRequest(
-            serverUrl,
-            `/api/v1/orders/${statusRequest.message.order_id}/ondcUpdate`,
-            'PUT',
-            { data: updateOrder },
-            {}
-        );
+                // Create moment objects for timestamp and timestamp + 4 hours
+                const endTime = moment(endTimestamp);
+                const endTimeRange = endTime.clone().add(4, 'hours').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
 
-        let updateResult = await httpRequest.send();
-
-        //update item level fulfillment status
-        let items = updateOrder.items.map((item) => {
-            if (item.state == 'Cancelled') {
-                item.tags = { status: 'Cancelled' };
-            }
-            // item.tags={status:logisticData.message.order.fulfillments[0].state?.descriptor?.code};
-            item.fulfillment_id = onNetworkLogistics ? logisticData.message.order.fulfillments[0].id : 'F1'
-            delete item.state
-            return item;
-        });
-        console.log("items----->", items);
-        console.log({ updateOrder });
-        updateOrder.items = items;
-        updateOrder.order_id = updateOrder.orderId;
-        //TODO: this is hard coded for now
-        //invoice must be provided from "Order-picked-up" state
-        if (deliveryFullfillment.state.descriptor.code !== 'pending' || deliveryFullfillment.state.descriptor.code !== 'Agent-assigned') {
-            updateOrder.documents =
-                [
-                    {
-                        "url": "https://invoice_url",
-                        "label": "Invoice"
+                // Construct the start time range object
+                const end = {
+                    time: {
+                        range: {
+                            start: endTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                            end: endTimeRange
+                        },
+                        timestamp: endTimestamp
                     }
-                ]
-        }
+                };
 
-        const productData = await getStatus({
-            context: statusRequest.context,
-            updateOrder: updateOrder
-        });
-
-        return productData
-    }
-
-    async productStatusUnsoliciatedLogistics(requestQuery, statusRequest = {}, unsoliciated, payload, onNetworkLogistics) {
-
-        if (!unsoliciated) {
-            console.log("in eif")
-            statusRequest = requestQuery.retail_status[0];
-        } else {
-            console.log("in else")
-            statusRequest = payload;
-
-        }
-
-        console.log("statusRequest---->", statusRequest.context)
-
-        const logisticData = requestQuery.logistics_on_status[0]
-
-        let confirm = {}
-        let httpRequest = new HttpRequest(
-            serverUrl,
-            `/api/v1/orders/${statusRequest.message.order_id}/ondcGet`,
-            'GET',
-            {},
-            {}
-        );
-
-        let result = await httpRequest.send();
-
-        console.log("result-->", result);
-        let updateOrder = result.data
-        let deliveryFullfillmentIndex = updateOrder.fulfillments.findIndex(x => x.type === 'Delivery');
-        let deliveryFullfillment = updateOrder.fulfillments.find(x => x.type === 'Delivery');
-        if (onNetworkLogistics) {
-            if (logisticData.message.order.fulfillments[0].state?.descriptor?.code === 'Pending') {
-                updateOrder.state = 'Created'
-            } else {
-                updateOrder.state = logisticData.message.order.state
-            }
-
-            //updateOrder.state =logisticData.message.order.state
-
-            //TODO: find fulfillment where type is delivery
-
-            deliveryFullfillment.state = logisticData.message.order.fulfillments[0].state
-        }
-        let fulfillmentHistory = ''
-        if (deliveryFullfillment.state.descriptor.code === 'Order-picked-up') {
-            //set start.timestamp ie. picked up timing
-            if (onNetworkLogistics) {
-                deliveryFullfillment.start.time.timestamp = logisticData.message.order?.fulfillments[0].start?.time?.timestamp ?? ""
-            } else {
-                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-picked-up')
-                deliveryFullfillment.start.time = { timestamp: fulfillmentHistory?.updatedAt }
-
-            }
-        }
-        if (deliveryFullfillment.state.descriptor.code === 'Order-delivered') {
-            //set end.timestamp ie. delivered timing
-            //deliveryFullfillment.start.time.timestamp = deliveryFullfillment.start.time
-            if (onNetworkLogistics) {
-                deliveryFullfillment.end.time.timestamp = logisticData.message.order?.fulfillments[0].end?.time?.timestamp ?? ""
-            } else {
-                fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-delivered')
-                deliveryFullfillment.end.time = { timestamp: fulfillmentHistory?.updatedAt }
+                // Assign the start time range object to deliveryFullfillment.start
+                deliveryFullfillment.end = end;
             }
         }
         if (onNetworkLogistics) {
@@ -1774,7 +1695,7 @@ class ProductService {
                 item.tags = { status: 'Cancelled' };
             }
             // item.tags={status:logisticData.message.order.fulfillments[0].state?.descriptor?.code};
-            item.fulfillment_id = onNetworkLogistics ? logisticData.message.order.fulfillments[0].id : 'F1'
+            //item.fulfillment_id = onNetworkLogistics ? logisticData.message.order.fulfillments[0].id : 'F1'
             delete item.state
             return item;
         });
@@ -1827,11 +1748,11 @@ class ProductService {
         let fulfillmentHistory = ''
         if (deliveryFullfillment.state.descriptor.code === 'Order-picked-up') {
             //set start.timestamp ie. picked up timing
-            fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-picked-up')
+            fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder._id, 'Order-picked-up')
             deliveryFullfillment.start.time = { timestamp: fulfillmentHistory?.updatedAt }
         }
         if (deliveryFullfillment.state.descriptor.code === 'Order-delivered') {
-            fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder.orderId, 'Order-delivered')
+            fulfillmentHistory = await this.ondcGetFulfillmentHistory(deliveryFullfillment.id, updateOrder._id, 'Order-delivered')
             deliveryFullfillment.end.time = { timestamp: fulfillmentHistory?.updatedAt }
         }
         updateOrder.fulfillments[deliveryFullfillmentIndex] = deliveryFullfillment;
@@ -2473,12 +2394,37 @@ class ProductService {
         } else {
             const currentMillis = Date.now();
             const deliveryTAT = moment.duration(org.providerDetail.storeDetails.deliveryTime).asMilliseconds();
+
+            // Create moment objects for startTime and endTime
+            const startTime = moment(currentMillis);
             const endTime = moment(currentMillis + deliveryTAT);
-            const formattedEndTime = endTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-            const formattedStartTime = moment(currentMillis).utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
-            confirmRequest.message.order.fulfillments[0].start.time = formattedEndTime
-            confirmRequest.message.order.fulfillments[0].end.time = formattedStartTime
-            confirmRequest.message.order.fulfillments[0]["@ondc/org/provider_name"] = org.providerDetail.name
+
+            // Add 4 hours to startTime and endTime
+            const startTimeRange = startTime.clone().add(4, 'hours').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+            const endTimeRange = endTime.clone().add(4, 'hours').utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]');
+
+            // Construct the start and end time objects
+            const start = {
+                time: {
+                    range: {
+                        start: startTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                        end: startTimeRange
+                    }
+                }
+            };
+
+            const end = {
+                time: {
+                    range: {
+                        start: endTime.utc().format('YYYY-MM-DDTHH:mm:ss.SSS[Z]'),
+                        end: endTimeRange
+                    }
+                }
+            };
+
+            // Assign start and end time objects to confirmRequest
+            confirmRequest.message.order.fulfillments[0].start = start;
+            confirmRequest.message.order.fulfillments[0].end = end;
         }
 
         confirmRequest.message.provider = { ...confirmRequest.message.provider, "rateable": true }
@@ -2634,7 +2580,7 @@ class ProductService {
                 deliveryCharges = {
                     "title": "Delivery charges",
                     "@ondc/org/title_type": "delivery",
-                    "@ondc/org/item_id": 1,
+                    "@ondc/org/item_id": 'F1',
                     "price": {
                         "currency": 'INR',
                         "value": '0'
@@ -3032,7 +2978,7 @@ class ProductService {
                 deliveryCharges = {
                     "title": "Delivery charges",
                     "@ondc/org/title_type": "delivery",
-                    "@ondc/org/item_id": '1',
+                    "@ondc/org/item_id": 'F1',
                     "price": {
                         "currency": 'INR',
                         "value": '0'
@@ -3052,7 +2998,7 @@ class ProductService {
                         {
                             "descriptor":
                             {
-                                "code": "Non-serviceable"//Hard coded
+                                "code": "Serviceable"//Hard coded
                             }
                         }, end: selectData.message.order.fulfillments[0].end
                     }]
@@ -3079,7 +3025,7 @@ class ProductService {
                         {
                             "descriptor":
                             {
-                                "code": "Serviceable"//Hard coded
+                                "code": "Non-serviceable"//Hard coded
                             }
                         },
                         end: selectData.message.order.fulfillments[0].end

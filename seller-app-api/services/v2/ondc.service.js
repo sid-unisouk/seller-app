@@ -1528,7 +1528,7 @@ class OndcService {
                 }
             })
 
-            const logistics = confirmRequest.selectedLogistics;
+            const logistics = confirmRequest?.selectedLogistics;
             let org = await productService.getOrgForOndc(confirmRequest.providerId);
             const onNetworkLogistics = org.providerDetail.storeDetails?.onNetworkLogistics ?? true;
 

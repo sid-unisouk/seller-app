@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import {uuid} from 'uuidv4';
+import { uuid } from 'uuidv4';
 
 const fulfillmentSchema = new mongoose.Schema({
     _id: {
@@ -7,10 +7,11 @@ const fulfillmentSchema = new mongoose.Schema({
         required: true,
         default: () => uuid(),
     },
-    request: {type: Object},
-    quote_trail: {type: Object},
-    id: {type: String},
+    request: { type: Object },
+    quote_trail: { type: Object },
+    id: { type: String },
     organization: { type: String, ref: 'Organization' },
+    transactionId: { type: String },
     order: { type: String, ref: 'Order' }
 }, {
     strict: true,

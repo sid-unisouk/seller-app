@@ -6,7 +6,7 @@ module.exports = {
             commonDetails: Joi.object({
                 productCode: Joi.string(),
                 productName: Joi.string(),
-                HSNCode: Joi.string(),
+                HSNCode: Joi.string().allow(''),
                 vegNonVeg : Joi.string().valid('VEG','NONVEG','EGG').allow(''),
                 timing : Joi.array(),
                 fulfilmentId : Joi.string().allow(''),
@@ -65,7 +65,7 @@ module.exports = {
             commonDetails: Joi.object({
                 productCode: Joi.string(),
                 productName: Joi.string(),
-                HSNCode: Joi.string(),
+                HSNCode: Joi.string().allow(''),
                 vegNonVeg : Joi.string().valid('VEG','NONVEG','EGG').allow(''),
                 timing : Joi.array(),
                 fulfillmentOption :Joi.string().allow(''),
@@ -135,7 +135,7 @@ module.exports = {
             commonDetails: Joi.object({
                 productCode: Joi.string(),
                 productName: Joi.string(),
-                HSNCode: Joi.string(),
+                HSNCode: Joi.string().allow(''),
                 vegNonVeg : Joi.string().valid('VEG', 'NONVEG','EGG').allow(''),
                 timing : Joi.array(),
                 fulfillmentOption :Joi.string().allow(''),
@@ -194,7 +194,7 @@ module.exports = {
             commonDetails: Joi.object({
                 productCode: Joi.string(),
                 productName: Joi.string(),
-                HSNCode: Joi.string(),
+                HSNCode: Joi.string().allow(''),
                 vegNonVeg : Joi.string().valid('VEG', 'NONVEG','EGG').allow(''),
                 timing : Joi.array(),
                 fulfillmentOption :Joi.string().allow(''),
